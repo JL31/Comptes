@@ -1,0 +1,4 @@
+.idea/
+donnees/
+sources/GUI/__init__.py
+sources/modules/__init__.py

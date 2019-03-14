@@ -1,0 +1,135 @@
+﻿
+Fait
+====
+
++ cf https://www.google.fr/imgres?imgurl=https%3A%2F%2Fnum.com%2Ffileadmin%2Fimages%2FProducts%2FHMI_Examples_01.jpg&imgrefurl=https%3A%2F%2Fnum.com%2Ffr%2Fproduits%2Fcommande-cnc%2F&docid=-RGlT6VRQ-W76M&tbnid=cUEGpzjCRaoLjM%3A&vet=10ahUKEwiW16-2xoHgAhXNAWMBHWw9DTkQMwhDKAYwBg..i&w=1700&h=1267&bih=626&biw=1366&q=exemple%20d%27IHM%20modernes&ved=0ahUKEwiW16-2xoHgAhXNAWMBHWw9DTkQMwhDKAYwBg&iact=mrc&uact=8
+
+o l'application sera en plein écran
+o panneau latéral (à droite) avec un bouton par mois
+o un seul QTableView dans la partie gauche qui chargera les données selon le mois sélectionné
+o bandeau supérieur qui contiendra les informations de type bilan (montant paye, total des dépenses, reste) pour le mois en cours
+o panneau inférieur qui contiendra trois boutons : prélèvements, épargne, dépenses
+  selon le bouton sélectionné l'affichage central s'actualisera
+o l'utilisation d'un raccourci clavier, par exemple Ctrl + O (pour Outils), permettra l'affichage d'une fenêtre en transparence, en mode plein écran et avec des boutons circulaires, pour toutes les actions (importer des données, quitter l'application...)
+  exemple : https://www.google.fr/imgres?imgurl=https%3A%2F%2Fcdn2.hubspot.net%2Fhubfs%2F2074406%2Fmaxresdefault.jpg&imgrefurl=https%3A%2F%2Fwww.wonderware.fr%2Fihm-scada%2Fqu-est-ce-que-ihm%2F&docid=Gnf9-8eN6xDKEM&tbnid=Bmae95ZnVdNaJM%3A&vet=12ahUKEwjhlcODx4HgAhWL1uAKHS5KDYE4ZBAzKC8wL3oECAEQMA..i&w=1280&h=720&bih=626&biw=1366&q=exemple%20d%27IHM%20modernes&ved=2ahUKEwjhlcODx4HgAhWL1uAKHS5KDYE4ZBAzKC8wL3oECAEQMA&iact=mrc&uact=8
+o utilisation d'un fichier JSON pour les données
+o colorier les boutons des types de données selon la donnée affichée
+o colorier les boutons des mois selon le mois en cours/sélectionné
+o rendre éditables les cellules des montants pour les prélèvements et pour l'épargne
+o afficher les infos en plus grand et en gras dans les QLineEdit du haut de l'appli (Montant paye etc...)
+o implémenter une méthode pour calculer la somme des épargnes
+o implémenter une méthode pour calculer la somme des prélèvement
+o calculer le reste du mois en cours, via une méthode, qui utilisera le montant de la paye, le montant des dépenses ainsi que la somme des prélèvement et des épargnes
+o ajouter une fonction pour modifier le montant de la paye du mois en cours dans les données (entrée dans le menu contextuel associé à la fenêtre et/ou bouton dans les outils en transparence)
+o prévoir une méthode, dans la classe de chargement d'un fichier de données (au format JSON), qui fera des vérifications sur les données (prévoir une option qui sera nécessaire pour préciser qu'on lit le fichier de données plutôt que le fichier de configuration (au format JSON aussi ==> ou alors héritage et sous-classe ==> ou alors composition et sous-classe)
+---
+---  Notes concernant le fichier JSON qui contient les données
+---  =========================================================
+---
+---  o doit contenir la date de mise-à-jour du fichier sinon erreur + quitter l'appli
+---  o doit contenir l'année sinon erreur + quitter l'appli
+---  o les trois catégories : prélèvements, épargnes et dépenses peuvent être vides
+---  o si l'une des catégories n'existe pas lors des vérifications du contenu du fichier chargé il faudra créer ladite catégorie avec une liste vide
+o mise-à-jour des données lorsqu'une cellule est modifiée
+o permettre l'ajout, la modification et la suppression des lignes dans chacunes des catégories (prélèvements, épargnes et dépenses)
+---  o la suppression des lignes se fera via un bouton dans les outils en transparence sur les lignes sélectionnées OU via une entrée dans le menu contextuel avec confirmation de suppression
+---  o l'ajout de lignes se fera via un raccourci clavier qui sera lié à une entrée dans le menu contextuel qui fera apparaître une fenêtre qui contiendra des widgets (inspiré de ce qui a été fait pour la balance des comptes)
+---  o l'outil d'insertion de lignes sera défini via Qt Designer : utiliser une liste déroulante, pour le moyen de paiement, dont l'élément sélectionné fera apparaître/disparaître un widget en plus (par exemple si c'est un chèque on fera apparaître un QLineEdit pour entrer le numéro du chèque)
+---  o l'outil d'insertion de lignes dans le TV restera ouvert, pour permettre d'insérer plusieurs lignes, tant que l'utilisateur n'aura pas cliqué sur fermer
+o boutons dans les outils en transparence : créer un nouveau mois
+--- o proposer de partir d'un mois existant
+--- o proposer de créer un mois vide
+o boutons dans les outils en transparence : créer une nouvelle année
+--- o proposer de créer le premier mois vide
+--- o proposer de partir d'un mois existant pour créer le premier mois
+o écriture (mise-à-jour) du fichier JSON
+o création d'une copie "back-up" du fichier de données mis-à-jour, dans un dossier spécifique, dont le nom contiendra la date et l'heure de la mise-à-jour
+o enregistrement des données via la raccourci clavier Ctrl + S
+o empêcher l'ouverture du menu contextuel du TV affichage si celui-ci est vide
+o envoi, par mail, d'une copie du fichier de données mis-à-jour
+o raccourcis clavier Ctrl + flèches gauche et droite pour changer de catégorie
+o raccourcis clavier Ctrl + flèches haut et bas pour changer de mois
+o rajouter VDLA et VVLA dans la liste des choix possibles pour l'ajout de lignes dans les dépenses
+o mettre en place les QValidator :
+o TV affichage :
+--- o prelevements :  colonne 1 <-> float(-5000.0, 5000.0, 3)
+--- o epargnes :      colonne 1 <-> float(-5000.0, 5000.0, 3)
+--- o prelevements :  colonne 0 <-> regexp(date)
+                      colonne 1 <-> rien
+                      colonne 2 <-> float(-5000.0, 5000.0, 3)
+o interface pour ajouter des lignes dans les catégories prélèvements et épargnes :
+--- o Libellé <-> rien
+--- o Montant <-> float(-5000.0, 5000.0, 3)
+o interface pour ajouter des lignes dans les dépenses :
+--- o Date    <-> regexp(date)
+--- o Libellé <-> rien
+--- o Montant <-> float(-5000.0, 5000.0, 3)
+o montant paye <-> float(0.0, 10000.0, 3)
+o régler soucis de la duplication d'un nouveau mois : remplissage de la seconde liste déroulante si c'est le premier choix qui apparaît
+o remplir le main pour le lancement de l'application
+o rajouter des icônes pour les entrées du menu contextuel :
+--- o ajouter des lignes : une croix (épaisse) verte
+--- o modifier statut : un "V" vert
+--- o supprimer lignes : une croix (fine) rouge
+--- o modification du montant de la paye : une tirelire en forme de cochon avec un symbole euro dessus
+--- o sources pour les icônes : https://www.iconfinder.com/search/?q=check&price=free&maximum=32
+o implémenter un système de gestion des erreurs/des messages d'erreurs via une pop-up (QLabel dans une fenêtre + timer pour affichage)
+o depenses : colonne 3 <-> mettre un menu déroulant pour la modification
+o pretty print pour l'enregistrement du fichier JSON ?
+o boutons dans les outils en transparence : importer des données issues de l'appli des comptes      --> implémenter la méthode dans l'application des comptes
+--- o vérrouiller la structure des données importées
+
+
+Infos
+=====
+
+(i) utilisation du mécanisme try/except
+(i) utilisation de la méthode "get" sur les dictionnaires : permet de trouver une clé et si elle n'existe pas de renvoyer une valeur par défaut
+(i) mécanisme de composition
+(i) mécanisme d'héritage
+(i) utilisation de générateurs
+(i) autant que possible on ne renvoie pas un objet mutable
+(i) classe abstraite avec des méthodes "not implemented" qui font appel à des méthodes, implémentées, de la classe abstraite
+(i) explorer l'utilisation de l'attribut parent (= None pour le moment)
+(i) prendre des infos sur le fait de ré-implémenter closeEvent()
+(i) https://stackoverflow.com/questions/31367097/how-to-restore-the-index-of-a-qcombobox-delegate-in-a-qtableview
+    https://doc.qt.io/archives/qt-4.8/model-view-programming.html#item-roles
+    https://doc.qt.io/archives/qt-4.8/qt-itemviews-spinboxdelegate-example.html
+(i) système (métaclasse ? fonction perso ?) qui permet de faire un print personnalisé sur le modèle suivant : nom de la classe --> nom de la méthode --> paramètre
+
+
+A faire
+=======
+
++++ externaliser des parties du code du Controleur en passant, en instance des nouveaux objets, l'instance du Controleur
+    --- utiliser un modèle commun pour tous les modèles existants ?
+    --- changement de mois/catégories : possibilité de factorisation des trois méthodes en une ou deux ?
+
++++ créer les test unittaires
+
+
+A terminer
+==========
+
+None
+
+
+Pour vérif
+==========
+
+Janvier :
+
+  2 000.0     montant paye
+- 1 525.0     somme des prélèvements
+- 1 090.0     somme des épargnes
+-    55.0     somme des dépenses
+---------
+-   670.0     reste
+
+
+Divers
+======
+
+créer un compilateur de fichiers ui avec une IHM qui contiendra une liste déroulante avec tous les fichiers ui présents dans le dossier qui contient l'outil
+
+python.exe -m PyQt4.uic.pyuic GUI_Outils_2.ui -o GUI_Outils_2.py
