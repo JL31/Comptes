@@ -48,7 +48,8 @@ class Outils(QtGui.QDialog, GUI_Outils.Ui_Dialog):
                                     "copie_back_up": self._instance_fenetre_principale.creation_d_une_copie_back_up,
                                     "importer_des_donnees": self._instance_fenetre_principale.importer_des_donnees,
                                     "creer_nouvelle_annee": self._instance_fenetre_principale.creation_d_une_nouvelle_annee,
-                                    "dupliquer_mois": self._instance_fenetre_principale.duplication_des_donnees_d_un_mois
+                                    "dupliquer_mois": self._instance_fenetre_principale.duplication_des_donnees_d_un_mois,
+                                    "fermeture_application": self._instance_fenetre_principale.fermeture_application
                                   }
 
         self.options_de_la_fenetre()
@@ -83,14 +84,6 @@ class Outils(QtGui.QDialog, GUI_Outils.Ui_Dialog):
         # Pour rappel lorsqu'on déplace un widget avec la méthode move on modifie les coordonnées de son coin haut gauche
         self.move(qr.topLeft())
 
-    # ===================================
-    def fermeture_de_l_application(self):
-        """
-            Méthode qui permet de fermer l'application
-        """
-
-        sys.exit()
-
     # ====================================
     def appel_de_la_methode(self, option):
         """
@@ -114,7 +107,7 @@ class Outils(QtGui.QDialog, GUI_Outils.Ui_Dialog):
         self.B_Importer_donnees.clicked.connect(lambda: self.appel_de_la_methode("importer_des_donnees"))
         self.B_Nouvelle_annee.clicked.connect(lambda: self.appel_de_la_methode("creer_nouvelle_annee"))
         self.B_Dupliquer_mois.clicked.connect(lambda: self.appel_de_la_methode("dupliquer_mois"))
-        self.B_Quitter.clicked.connect(self.fermeture_de_l_application)
+        self.B_Quitter.clicked.connect(lambda: self.appel_de_la_methode("fermeture_application"))
 
 # =================================================================================================
 # Utilisation

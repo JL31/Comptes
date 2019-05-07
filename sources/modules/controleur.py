@@ -38,7 +38,7 @@ import sys
 import os
 import shutil
 from datetime import datetime
-
+from lxml import etree
 
 # =================================================================================================
 # Classes
@@ -127,6 +127,10 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         self._emplacement_absolu_du_fichier_de_configuration = os.path.join(os.path.abspath("../../donnees"), self._nom_du_fichier_de_configuration)
 
         self._emplacement_du_dossier_des_donnees = os.path.abspath("../../donnees")
+
+        # Initialisation des listes des éléments à exporter : une liste pour les crédits et une autre pour les débits
+        self._credits_a_exporter = []
+        self._debits_a_exporter = []
 
         # Liste des méthodes pour initialisation
         
@@ -373,6 +377,9 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         
         self.TV_affichage.setModel(self._dico_des_modeles[self._categorie_affichee])
 
+        # Adaptation de la largeur des colonnes en fonction du contenu
+        self.TV_affichage.resizeColumnsToContents()
+
         if self._categorie_affichee in ["depenses"]:
 
             self.cbd = ComboBoxDelegate()
@@ -401,7 +408,10 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         
         # mise-à-jour des données récupérées dans le modèle
         self._donnees[self._mois_a_afficher][categorie] = self._dico_des_modeles[categorie].get_donnees()
-        
+
+        # Adaptation de la largeur des colonnes en fonction du contenu
+        self.TV_affichage.resizeColumnsToContents()
+
         # mise-à-jour de l'affichage
         self.mise_a_jour_de_l_affichage()
 
@@ -412,7 +422,6 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         """
         
         # Connexion des boutons des mois
-
         self.B_janvier.clicked.connect(lambda: self.definition_du_mois_a_afficher(1))
         self.B_fevrier.clicked.connect(lambda: self.definition_du_mois_a_afficher(2))
         self.B_mars.clicked.connect(lambda: self.definition_du_mois_a_afficher(3))
@@ -427,7 +436,6 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         self.B_decembre.clicked.connect(lambda: self.definition_du_mois_a_afficher(12))
         
         # Connexion des boutons liés au type des données : Prélèvement, Epargne et Dépenses
-        
         self.B_prelevements.clicked.connect(lambda: self.connexion_du_modele("prelevements"))
         self.B_epargne.clicked.connect(lambda: self.connexion_du_modele("epargnes"))
         self.B_depenses.clicked.connect(lambda: self.connexion_du_modele("depenses"))
@@ -449,7 +457,6 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         self.customContextMenuRequested.connect(self.creation_menu_contextuel_modification_montant_paye)
         
         # Connexion des signaux de changement des données des modèles
-
         self._dico_des_modeles["prelevements"].dataChanged.connect(lambda: self.mise_a_jour_donnees("prelevements"))
         self._dico_des_modeles["epargnes"].dataChanged.connect(lambda: self.mise_a_jour_donnees("epargnes"))
         self._dico_des_modeles["depenses"].dataChanged.connect(lambda: self.mise_a_jour_donnees("depenses"))
@@ -475,13 +482,16 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         """
         
         # Création de l'action liée à l'affichage des outils
+        # ==================================================
         
         # Création d'une action associée aux outils
         self._actionOutils = QtGui.QAction("Outils", self)
         
         # Assignation du raccourci clavier "Ctrl + O" à cette action
-        self._actionOutils.setShortcut("Ctrl+O")
-        
+        # --> remplacé par la touche Echap
+        # self._actionOutils.setShortcut("Ctrl+O")
+        self._actionOutils.setShortcut(QtCore.Qt.Key_Escape)
+
         # Connection de l'action à la méthode "lancement_outils"
         self._actionOutils.triggered.connect(self.lancement_outils)
         
@@ -492,7 +502,8 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         
 
         # Création de l'action liée à la modification du statut, action qui va être liée au menu contextuel lié au TV_affichage
-        
+        # =====================================================================================================================
+
         # Création de l'action intitulée "_actionModificationStatut"
         self._actionModificationStatut = QtGui.QAction("Modifier le statut", self)
 
@@ -509,7 +520,8 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         
 
         # Création de l'action liée à la supression de lignes, action qui va être liée au menu contextuel lié au TV_affichage
-        
+        # ===================================================================================================================
+
         # Création de l'action intitulée "_actionSuppressionLignes"
         self._actionSuppressionLignes = QtGui.QAction(u"Supprimer des lignes", self)
 
@@ -526,7 +538,8 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         
         
         # Création de l'action liée à la modification du montant de la paye, action qui va être liée au menu contextuel de la fenêtre
-        
+        # ===========================================================================================================================
+
         # Création de l'action intitulée "_actionModificationMontantPaye"
         self._actionModificationMontantPaye = QtGui.QAction(u"Modification du montant de la paye", self)
 
@@ -543,7 +556,8 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         
         
         # Création de l'action liée à l'enregistrement des données, action qui va être liée au menu contextuel de la fenêtre
-        
+        # ==================================================================================================================
+
         # Création de l'action intitulée "_actionEnregistrement"
         self._actionEnregistrement = QtGui.QAction(u"Enregistrer les résultats", self)
 
@@ -558,7 +572,8 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         
         
         # Création de l'action liée à l'ajout de lignes, action qui va être liée au menu contextuel lié au TV_affichage
-        
+        # =============================================================================================================
+
         # Création de l'action intitulée "_actionAjoutLignes"
         self._actionAjoutLignes = QtGui.QAction(u"Ajouter des lignes", self)
 
@@ -574,7 +589,26 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         self.addAction(self._actionAjoutLignes)
 
 
+        # Création de l'action liée à l'export de lignes, action qui va être liée au menu contextuel lié au TV_affichage
+        # ==============================================================================================================
+
+        # Création de l'action intitulée "_actionExportLignes"
+        self._actionExportLignes = QtGui.QAction(u"Exporter des lignes", self)
+
+        # Ajout d'un icône à l'action
+        icone_export_donnees = QtGui.QIcon()
+        icone_export_donnees.addPixmap(QtGui.QPixmap("../../icones/icone_export_donnees_32_x_32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self._actionExportLignes.setIcon(icone_export_donnees)
+
+        # Connection de l'action à la méthode "exporter_des_lignes"
+        self._actionExportLignes.triggered.connect(self.exporter_des_lignes)
+
+        # Ajout de l'action à un widget : ici c'est l'application elle-même
+        self.addAction(self._actionExportLignes)
+
+
         # Changement de catégorie/mois
+        # ============================
 
         self._changer_de_categorie_gauche = QtGui.QAction("Changer de catégorie", self)
         self._changer_de_categorie_gauche.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Left))
@@ -595,6 +629,151 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         self._changer_de_mois_bas.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Down))
         self._changer_de_mois_bas.triggered.connect(self.changement_mois_bas)
         self.addAction(self._changer_de_mois_bas)
+
+    # ============================
+    def exporter_des_lignes(self):
+        """
+            Méthode qui permet d'exporter des lignes pour une utilisation dans l'application de gestion du livret A
+        """
+
+        # Traitement des cellules sélectionnées
+
+        # Récupèration de la liste des cellules sélectionnées
+        self._cellules_selectionnees = self.TV_affichage.selectedIndexes()
+
+        # On itère sur la liste des cellules sélectionnées et on modifie le statut de la ligne associée
+        self.lignes_au_statut_modifies = []
+
+        for indice, cellule in enumerate(self._cellules_selectionnees):
+
+            if cellule.row() not in self.lignes_au_statut_modifies:
+                # si la ligne associée à la cellule actuelle ne figure pas dans la liste des lignes dont le statut a déjà été modifié
+
+                # Récupération des données du mois et de la catégorie affichés dans une variable temporaire
+                dico_tmp = self._donnees[self._mois_a_afficher][self._categorie_affichee][cellule.row()]
+
+                # Vérification du statut de la ligne courantge
+                if not dico_tmp["statut"]:
+
+                    # Si le montant de la ligne courante est négatif on ajoute un débit au dictionnaire des lignes à exporter
+                    if dico_tmp["montant"] < 0:
+
+                        valeur_nom, valeur_libelle = self.recuperation_nom_libelle(dico_tmp, "débit")
+
+                        self._debits_a_exporter.append({"nom" : valeur_nom,
+                                                        "montant" : str(dico_tmp["montant"]),
+                                                        "libelle": valeur_libelle,
+                                                        "date_du_virement" : str(dico_tmp["date"]),
+                                                        "statut" : "true"
+                                                       })
+
+                    # Sinon on ajoute un crédit au dictionnaire des lignes à exporter
+                    elif dico_tmp["montant"] > 0:
+
+                        valeur_nom, valeur_libelle = self.recuperation_nom_libelle(dico_tmp, "crédit")
+
+                        self._credits_a_exporter.append({"nom": valeur_nom,
+                                                         "montant": str(dico_tmp["montant"]),
+                                                         "date_du_virement": self._date_du_jour.strftime("%d/%m/%Y"),
+                                                         "statut": "true"
+                                                        })
+
+                # Modificaiton du statut de la ligne courante
+                dico_tmp["statut"] = True
+
+                # Ajout de la ligne courante à la liste des lignes modifiées
+                self.lignes_au_statut_modifies.append(cellule.row())
+
+        # On modifie les données du modèle actif
+        self._dico_des_modeles[self._categorie_affichee].set_donnees(self._donnees[self._mois_a_afficher][self._categorie_affichee])
+
+        # Enlève la sélection
+        self.TV_affichage.clearSelection()
+
+    # ====================================================================
+    def recuperation_nom_libelle(self, donnees_de_la_ligne, credit_debit):
+        """
+            Méthode qui permet de récupérer le nom et le libellé (dans le cas d'un débit) de la ligne courante
+
+            :param donnees_de_la_ligne: un dictionnaire qui contient les données de la ligne courante
+            :type donnees_de_la_ligne: dict
+
+            :param credit_debit: variable qui permet de savoir si la récupération concerne une donnée pour un crédit ou un débit
+            :type credit_debit: str
+
+            :return: les valeurs extraites pour le nom et le libellé (dans le cas d'un débit)
+            :rtype: tuple(str, str)
+        """
+
+        valeur_nom = ""
+        valeur_libelle = ""
+
+        if self._categorie_affichee == "epargnes":
+
+            valeur_nom = donnees_de_la_ligne["titre"]
+
+            if credit_debit in ["débit"]:
+
+                valeur_libelle = valeur_nom
+
+        elif self._categorie_affichee == "depenses":
+
+            valeur_nom = donnees_de_la_ligne["titre"].split("/")[1]
+
+            if credit_debit in ["débit"]:
+
+                valeur_libelle = donnees_de_la_ligne["titre"].split("/")[0]
+
+        return (valeur_nom, valeur_libelle)
+
+    # ================================
+    def ecriture_fichier_export(self):
+        """
+            Méthode qui permet d'écrire le fichier XML contenant les données à exporter
+        """
+
+        # Initialisations
+        # ===============
+        element_racine = None
+        element_mois = None
+        element_credits = None
+        element_debits = None
+
+
+        # Création de l'élément racine (export) et du mois affiché
+        # ========================================================
+        if self._credits_a_exporter or self._debits_a_exporter:
+
+            element_racine = etree.Element("export")
+            element_mois = etree.SubElement(element_racine, "mois", nom=self._mois_a_afficher.capitalize())
+
+            # Parcours des éléments de la liste des crédits à à exporter
+            # ==========================================================
+            for indice, valeur in enumerate(self._credits_a_exporter):
+
+                if element_mois.find("crédits") is None:
+
+                    element_credits = etree.SubElement(element_mois, "crédits")
+
+                etree.SubElement(element_credits, "catégorie", nom=valeur["nom"], montant=valeur["montant"], date_du_virement=valeur["date_du_virement"], statut=valeur["statut"])
+
+
+            # Parcours des éléments de la liste des débits à à exporter
+            # =========================================================
+            for indice, valeur in enumerate(self._debits_a_exporter):
+
+                if element_mois.find("débits") is None:
+
+                    element_debits = etree.SubElement(element_mois, "débits")
+
+                etree.SubElement(element_debits, "catégorie", nom=valeur["nom"], montant=valeur["montant"], libellé= valeur["libelle"], date_du_virement=valeur["date_du_virement"], statut=valeur["statut"])
+
+
+            # Ecriture de l'arbre dans un fichier
+            # ===================================
+            with open("test.xml", 'wb') as f:
+
+                f.write(etree.tostring(element_racine, pretty_print=True, xml_declaration=True, encoding="UTF-8", standalone=False))
 
     # ================================
     def changement_de_categorie(self):
@@ -873,6 +1052,19 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         self.__essai = AffichageMessage(message)
         self.__essai.exec_()
 
+    #===============================
+    def fermeture_application(self):
+        """
+            Méthode qui permet de fermer l'application
+
+        """
+
+        # Ecriture du fichier XML contenant les données à exporter avant de fermer l'application
+        self.ecriture_fichier_export()
+
+        # Fermeture
+        sys.exit()
+
     # ===============================
     def modification_du_statut(self):
         """
@@ -1025,16 +1217,13 @@ class Controleur(QtGui.QMainWindow, GUI_Application.Ui_MainWindow):
         if len(self._donnees[self._mois_a_afficher][self._categorie_affichee]) > 0:
 
             # Création d'une instance de menu QMenu
-
             self._menu_contextuel_TV_affichage = QtGui.QMenu()
 
             # Ajout d'une action dans le menu contextuel
-
             self._menu_contextuel_TV_affichage.addAction(self._actionAjoutLignes)
             self._menu_contextuel_TV_affichage.addAction(self._actionModificationStatut)
             self._menu_contextuel_TV_affichage.addAction(self._actionSuppressionLignes)
-
-            # Lancement du menu contextuel
+            self._menu_contextuel_TV_affichage.addAction(self._actionExportLignes)
 
             # Lancement du menu contextuel
             # --- l'option QtGui.QCursor.pos() permet d'ouvrir le menu contextuel à l'emplacement du pointeur
