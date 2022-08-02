@@ -24,16 +24,14 @@ import sys
 # =================================================================================================
 
 
-# ================================================
 class Outils(QtWidgets.QDialog, GUI_Outils.Ui_Dialog):
     """
-        Classe de lien entre la Vue et le Modèle
+    Classe de lien entre la Vue et le Modèle
     """
 
-    # ===========================================================
     def __init__(self, instance_fenetre_principale, parent=None):
         """
-            Constructeur de la classe
+        Constructeur de la classe
         """
 
         super(Outils, self).__init__(parent)
@@ -55,49 +53,49 @@ class Outils(QtWidgets.QDialog, GUI_Outils.Ui_Dialog):
         self.centrage_de_la_fenetre()
         self.connexion_des_widgets()
 
-    # ==============================
     def options_de_la_fenetre(self):
         """
-            Méthode qui permet de configurer certaines options pour la fenêtre
+        Méthode qui permet de configurer certaines options pour la fenêtre
         """
 
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, True)
 
-    # ===============================
     def centrage_de_la_fenetre(self):
         """
-            Méthode qui permet de centrer la fenêtre sur l'écran
+        Méthode qui permet de centrer la fenêtre sur l'écran
         """
 
         # Récupération de la géométrie de la fenêtre dans un objet : QRect avec X, Y, largeur, hauteur
         qr = self.frameGeometry()
+        print(qr)
 
         # Récupération de la position (X, Y) du centre de l'écran
-        cp = QtGui.QDesktopWidget().availableGeometry().center()
+        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        print(cp)
 
         # Déplacement du centre de l'objet réprésentant la géométrie de la fenêtre au centre de l'écran
         qr.moveCenter(cp)
 
-        # Déplacement de la fenêtre : on récupéère les coordonnées du coin haut gauche de l'objet représentant la fenêtre et on déplace la fenêtre à cet emplacement
-        # Pour rappel lorsqu'on déplace un widget avec la méthode move on modifie les coordonnées de son coin haut gauche
+        # Déplacement de la fenêtre : on récupéère les coordonnées du coin haut gauche de l'objet représentant la
+        # fenêtre et on déplace la fenêtre à cet emplacement
+        # Pour rappel lorsqu'on déplace un widget avec la méthode move on modifie les coordonnées de son coin haut
+        # gauche
         self.move(qr.topLeft())
 
-    # ====================================
     def appel_de_la_methode(self, option):
         """
-            Méthode qui permet d'appeler la méthode adéquate à l'action sélectionnée
-            Cette méthode va fermer la fenêtre des outils une fois l'action précédente réalisée
+        Méthode qui permet d'appeler la méthode adéquate à l'action sélectionnée
+        Cette méthode va fermer la fenêtre des outils une fois l'action précédente réalisée
         """
 
         self._dico_des_methodes[option]()
 
         self.accept()
 
-    # ==============================
     def connexion_des_widgets(self):
         """
-            Méthode qui permet de connecter les widgets
+        Méthode qui permet de connecter les widgets
         """
 
         self.B_Enregistrer.clicked.connect(lambda: self.appel_de_la_methode("enregistrement"))
@@ -107,11 +105,3 @@ class Outils(QtWidgets.QDialog, GUI_Outils.Ui_Dialog):
         self.B_Nouvelle_annee.clicked.connect(lambda: self.appel_de_la_methode("creer_nouvelle_annee"))
         self.B_Dupliquer_mois.clicked.connect(lambda: self.appel_de_la_methode("dupliquer_mois"))
         self.B_Quitter.clicked.connect(lambda: self.appel_de_la_methode("fermeture_application"))
-
-
-# =================================================================================================
-# Utilisation
-# =================================================================================================
-
-if __name__ == "__main__":
-    print("Je ne tourne pas tout seul !")

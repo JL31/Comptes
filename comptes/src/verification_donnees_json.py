@@ -15,7 +15,6 @@ __all__ = ["VerificationDonneesJSON"]
 # =================================================================================================
 
 from typing import Optional, List, Dict
-import os
 from datetime import datetime
 
 
@@ -41,7 +40,7 @@ class VerificationDonneesJSON(object):
         self._date_de_mise_a_jour_datetime: Optional[datetime] = None
         self._annee: str = ""
 
-        self._liste_des_cles = None
+        self._liste_des_cles: Optional[List[str]] = None
         self._liste_des_mois = None
         self._liste_des_elements_indice_en_cours = None
 

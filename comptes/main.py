@@ -7,7 +7,7 @@
 # =================================================================================================
 
 # Import des librairies graphiques
-from PyQt5 import QtGui, QtWidgets
+from PyQt5 import QtWidgets
 
 # Import des librairies qui contiennent le modèle
 from src.controleur import Controleur
@@ -22,7 +22,6 @@ import sys
 
 if __name__ == "__main__":
 
-    # app = QtGui.QApplication(sys.argv)
     app = QtWidgets.QApplication(sys.argv)
 
     instance_controleur = Controleur(app)

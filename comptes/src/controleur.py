@@ -222,15 +222,26 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         """
 
         # Mise-à-jour du QLineEdit LE_montant_paye
+        a = self._donnees.get(self._mois_a_afficher).get("montant_paye")
+        # print(a)
+        # print(type(a))
+        # b = str(a)
+        # print(b)
+        # print(type(b))
+        # c = b.split(".")[0]
+        # d = f"{c[:len(c) - 3]} {c[-3:]}" if len(c) > 3 else c
+        # print(d)
+        # TODO : faire une fonction dédiée, ça servira partout...
+        # TODO : il faudra également prévoir la fonction inverse (i.e. pour la lecture de la valeur)
         self.LE_montant_paye.setText(str(self._donnees[self._mois_a_afficher]["montant_paye"]))
+        # self.LE_montant_paye.setText(d)
 
         # Désactivation du mode édition du QLineEdit
         self.LE_montant_paye.setReadOnly(True)
 
-    # =====================================
     def mise_a_jour_montant_depenses(self):
         """
-            Méthode qui permet de mettre à jour le QLineEdit contenant les dépenses du mois en cours
+        Méthode qui permet de mettre à jour le QLineEdit contenant les dépenses du mois en cours
         """
 
         # Mise-à-jour des modèles
@@ -242,59 +253,64 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # Mise-à-jour du QLineEdit LE_depenses
         self.LE_depenses.setText(str(self._dico_des_modeles["depenses"].somme_des_depenses))
 
-    # ==================================
     def mise_a_jour_montant_reste(self):
         """
-            Méthode qui permet de mettre à jour le QLineEdit contenant les dépenses du mois en cours
+        Méthode qui permet de mettre à jour le QLineEdit contenant les dépenses du mois en cours
+        Il permet également de mettre à jour les QLineEdit contenant les prélèvements et les épargnes du mois en cours
         """
 
         # Mise-à-jour des modèles
-
         self._dico_des_modeles["prelevements"].set_donnees(self._donnees[self._mois_a_afficher]["prelevements"])
         self._dico_des_modeles["epargnes"].set_donnees(self._donnees[self._mois_a_afficher]["epargnes"])
 
         # Calcul des sommes pour les prélèvements et les épargnes
-
+        # TODO : à analyser car j'ai l'impression que le calcul se fait en deux étapes alors que le modèle devrait
+        # TODO : renvoyer directement le résultat dans les lignes ci-dessous
+        # TODO : ==> dans l'idée la property associée au modèle est censée lancer le calcul côté modèle et renvoyer
+        # TODO : directement le résultat
         self._dico_des_modeles["prelevements"].calculer_la_somme_des_prelevements()
         self._dico_des_modeles["epargnes"].calculer_la_somme_des_epargnes()
 
         # Calcul du reste
+        montant_paye: float = self._donnees[self._mois_a_afficher].get("montant_paye", 0.0)
+        somme_des_prelevements: float = self._dico_des_modeles["prelevements"].somme_des_prelevements
+        somme_des_epargnes: float = self._dico_des_modeles["epargnes"].somme_des_epargnes
+        somme_des_depenses: float = self._dico_des_modeles["depenses"].somme_des_depenses
 
-        self._reste = self._donnees[self._mois_a_afficher]["montant_paye"] - self._dico_des_modeles["prelevements"].somme_des_prelevements - self._dico_des_modeles["epargnes"].somme_des_epargnes - self._dico_des_modeles["depenses"].somme_des_depenses
+        reste: float = montant_paye + somme_des_prelevements + somme_des_epargnes + somme_des_depenses
 
         # Mise-en-forme du QLineEdit LE_reste en fonction du reste calculé
-
-        if self._reste < 0:
+        if reste < 0:
             # Si le reste est négatif on colorie le fond
-
             self.LE_reste.setStyleSheet("background-color: rgb(255,50,0)")
 
         else:
             # Sinon on ne fait rien
-
             self.LE_reste.setStyleSheet("background-color: None")
 
         # On modifie l'affichage du QLineEdit LE_reste
+        self.LE_reste.setText(str(reste))
 
-        self.LE_reste.setText(str(self._reste))
+        # On modifie également les affichages des QLineEdit Le_prelevements et LE_epargne
+        self.LE_prelevements.setText(str(somme_des_prelevements))
+        self.LE_epargne.setText(str(somme_des_epargnes))
 
     # ===============================================
     def chargement_du_fichier_de_configuration(self):
         """
-            Méthode qui permet de charger le contenu du fichier de configuration
+        Méthode qui permet de charger le contenu du fichier de configuration
         """
 
         # Chargement du fichier de configuration
 
-        self._type_de_fichier = "configuration"
+        self._type_de_fichier: str = "configuration"
         self._fichier_de_configuration = LectureFichierJSON(self._emplacement_absolu_du_fichier_de_configuration, self._type_de_fichier)
         self._fichier_de_configuration.lecture_du_fichier()
         self._contenu_du_fichier_de_configuration = self._fichier_de_configuration.get_contenu_du_fichier()
 
         # Récupération du nom du fichier contenant les données
-
-        self._nom_du_fichier_de_donnees = self._contenu_du_fichier_de_configuration["fichier_contenant_les_donnees"]
-        self._emplacement_absolu_du_fichier_de_donnees = os.path.join(self._emplacement_du_dossier_des_donnees, self._nom_du_fichier_de_donnees)
+        self._nom_du_fichier_de_donnees: str = self._contenu_du_fichier_de_configuration["fichier_contenant_les_donnees"]  # TODO : remplacer par un get() ?
+        self._emplacement_absolu_du_fichier_de_donnees: str = os.path.join(self._emplacement_du_dossier_des_donnees, self._nom_du_fichier_de_donnees)
 
     # ===============================
     def chargement_des_donnees(self):
@@ -307,44 +323,35 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._lecture_donnees.lecture_du_fichier()
         self._donnees = self._lecture_donnees.get_contenu_du_fichier()
 
-    # ===================================
     def mise_a_jour_de_l_affichage(self):
         """
-            Méthode qui permet de mettre à jour l'affichage
+        Méthode qui permet de mettre à jour l'affichage
         """
 
         # Mise-à-jour du montant de la paye du mois en cours
-
         self.mise_a_jour_du_montant_de_la_paye()
 
         # Mise-à-jour du montant des dépenses du mois en cours
-
         self.mise_a_jour_montant_depenses()
 
         # Mise-à-jour du montant du reste du mois en cours
-
         self.mise_a_jour_montant_reste()
 
-    # ============================================
     def definition_du_mois_a_afficher(self, mois):
         """
-            Méthode qui permet de déterminer le mois à afficher
+        Méthode qui permet de déterminer le mois à afficher
         """
 
         # Récupération du mois à afficher sous forme de chaîne de caractères
-
         self._mois_a_afficher = self._dico_liste_des_mois[mois]
 
         # Mise-en-forme du bouton du mois sélectionné
-
         self.mise_en_forme_du_bouton_du_mois_selectionne(mois)
 
         # Connexion du modèle
-
         self.connexion_du_modele(self._categorie_affichee)
 
         # Mise-à-jour de l'affichage
-
         self.mise_a_jour_de_l_affichage()
 
     # ==========================================================
@@ -410,10 +417,9 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
                 self._dico_boutons_categories[cle].setStyleSheet("background-color: None")
 
-    # =======================================
     def mise_a_jour_donnees(self, categorie):
         """
-            Méthode qui permet de mettre-à-jour les données en récupérant celles du modèle passé en argument
+        Méthode qui permet de mettre-à-jour les données en récupérant celles du modèle passé en argument
         """
 
         # mise-à-jour des données récupérées dans le modèle
@@ -472,8 +478,9 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._dico_des_modeles["depenses"].dataChanged.connect(lambda: self.mise_a_jour_donnees("depenses"))
 
         # Mise en place du QValidator pour le QLineEdit contenant le montant de la paye
-        self._validateur_pour_montant_paye = sous_classement_des_qvalidators.SCQDoubleValidation(0.0, 10000.0)
-        self._validateur_pour_montant_paye.setDecimals(3)
+        self._validateur_pour_montant_paye = QtGui.QRegExpValidator(
+            QtCore.QRegExp("^(\d{1,2} \d{3}|\d{1,5})(\.\d{0,3})?$")
+        )
         self.LE_montant_paye.setValidator(self._validateur_pour_montant_paye)
 
     # ========================
@@ -495,7 +502,7 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # ==================================================
 
         # Création d'une action associée aux outils
-        self._actionOutils = QtGui.QAction("Outils", self)
+        self._actionOutils = QtWidgets.QAction("Outils", self)
 
         # Assignation du raccourci clavier "Ctrl + O" à cette action
         # --> remplacé par la touche Echap
@@ -514,11 +521,15 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # =====================================================================================================================
 
         # Création de l'action intitulée "_actionModificationStatut"
-        self._actionModificationStatut = QtGui.QAction("Modifier le statut", self)
+        self._actionModificationStatut = QtWidgets.QAction("Modifier le statut", self)
 
         # Ajout d'un icône à l'action
         icone_modification_statut = QtGui.QIcon()
-        icone_modification_statut.addPixmap(QtGui.QPixmap("../../icones/icone_modification_statut_32_x_32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icone_modification_statut.addPixmap(
+            QtGui.QPixmap("../icones/icone_modification_statut_32_x_32.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off
+        )
         self._actionModificationStatut.setIcon(icone_modification_statut)
 
         # Connection de l'action à la méthode "modification_du_statut"
@@ -531,11 +542,15 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # ===================================================================================================================
 
         # Création de l'action intitulée "_actionSuppressionLignes"
-        self._actionSuppressionLignes = QtGui.QAction(u"Supprimer des lignes", self)
+        self._actionSuppressionLignes = QtWidgets.QAction(u"Supprimer des lignes", self)
 
         # Ajout d'un icône à l'action
         icone_suppression_lignes = QtGui.QIcon()
-        icone_suppression_lignes.addPixmap(QtGui.QPixmap("../../icones/icone_suppression_ligne_32_x_32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icone_suppression_lignes.addPixmap(
+            QtGui.QPixmap("../icones/icone_suppression_ligne_32_x_32.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off
+        )
         self._actionSuppressionLignes.setIcon(icone_suppression_lignes)
 
         # Connection de l'action à la méthode "supprimer_des_lignes"
@@ -548,15 +563,21 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # ===========================================================================================================================
 
         # Création de l'action intitulée "_actionModificationMontantPaye"
-        self._actionModificationMontantPaye = QtGui.QAction(u"Modification du montant de la paye", self)
+        self._actionModificationMontantPaye = QtWidgets.QAction(u"Modification du montant de la paye", self)
 
         # Ajout d'un icône à l'action
         icone_modification_montant_paye = QtGui.QIcon()
-        icone_modification_montant_paye.addPixmap(QtGui.QPixmap("../../icones/icone_modification_montant_32_x_32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icone_modification_montant_paye.addPixmap(
+            QtGui.QPixmap("../icones/icone_modification_montant_32_x_32.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off
+        )
         self._actionModificationMontantPaye.setIcon(icone_modification_montant_paye)
 
         # Connection de l'action à la méthode "modification_du_montant_de_la_paye"
-        self._actionModificationMontantPaye.triggered.connect(self.etapes_prealables_a_la_modification_du_montant_de_la_paye)
+        self._actionModificationMontantPaye.triggered.connect(
+            self.etapes_prealables_a_la_modification_du_montant_de_la_paye
+        )
 
         # Ajout de l'action à un widget : ici c'est l'application elle-même
         self.addAction(self._actionModificationMontantPaye)
@@ -565,7 +586,7 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # ==================================================================================================================
 
         # Création de l'action intitulée "_actionEnregistrement"
-        self._actionEnregistrement = QtGui.QAction(u"Enregistrer les résultats", self)
+        self._actionEnregistrement = QtWidgets.QAction(u"Enregistrer les résultats", self)
 
         # Assignation du raccourci clavier "Ctrl + S" à cette action
         # self._actionEnregistrement.setShortcut("Ctrl+S")              --> désactivé pour le moment
@@ -580,11 +601,15 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # =============================================================================================================
 
         # Création de l'action intitulée "_actionAjoutLignes"
-        self._actionAjoutLignes = QtGui.QAction(u"Ajouter des lignes", self)
+        self._actionAjoutLignes = QtWidgets.QAction(u"Ajouter des lignes", self)
 
         # Ajout d'un icône à l'action
         icone_ajout_lignes = QtGui.QIcon()
-        icone_ajout_lignes.addPixmap(QtGui.QPixmap("../../icones/icone_ajout_ligne_32_x_32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icone_ajout_lignes.addPixmap(
+            QtGui.QPixmap("../icones/icone_ajout_ligne_32_x_32.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off
+        )
         self._actionAjoutLignes.setIcon(icone_ajout_lignes)
 
         # Connection de l'action à la méthode "ajouter_des_lignes"
@@ -597,11 +622,15 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # ==============================================================================================================
 
         # Création de l'action intitulée "_actionExportLignes"
-        self._actionExportLignes = QtGui.QAction(u"Exporter des lignes", self)
+        self._actionExportLignes = QtWidgets.QAction(u"Exporter des lignes", self)
 
         # Ajout d'un icône à l'action
         icone_export_donnees = QtGui.QIcon()
-        icone_export_donnees.addPixmap(QtGui.QPixmap("../../icones/icone_export_donnees_32_x_32.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icone_export_donnees.addPixmap(
+            QtGui.QPixmap("../icones/icone_export_donnees_32_x_32.png"),
+            QtGui.QIcon.Normal,
+            QtGui.QIcon.Off
+        )
         self._actionExportLignes.setIcon(icone_export_donnees)
 
         # Connection de l'action à la méthode "exporter_des_lignes"
@@ -613,22 +642,22 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # Changement de catégorie/mois
         # ============================
 
-        self._changer_de_categorie_gauche = QtGui.QAction("Changer de catégorie", self)
+        self._changer_de_categorie_gauche = QtWidgets.QAction("Changer de catégorie", self)
         self._changer_de_categorie_gauche.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Left))
         self._changer_de_categorie_gauche.triggered.connect(self.changement_categorie_gauche)
         self.addAction(self._changer_de_categorie_gauche)
 
-        self._changer_de_categorie_droite = QtGui.QAction("Changer de catégorie", self)
+        self._changer_de_categorie_droite = QtWidgets.QAction("Changer de catégorie", self)
         self._changer_de_categorie_droite.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Right))
         self._changer_de_categorie_droite.triggered.connect(self.changement_categorie_droite)
         self.addAction(self._changer_de_categorie_droite)
 
-        self._changer_de_mois_haut = QtGui.QAction("Changer de catégorie", self)
+        self._changer_de_mois_haut = QtWidgets.QAction("Changer de catégorie", self)
         self._changer_de_mois_haut.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Up))
         self._changer_de_mois_haut.triggered.connect(self.changement_mois_haut)
         self.addAction(self._changer_de_mois_haut)
 
-        self._changer_de_mois_bas = QtGui.QAction("Changer de catégorie", self)
+        self._changer_de_mois_bas = QtWidgets.QAction("Changer de catégorie", self)
         self._changer_de_mois_bas.setShortcut(QtGui.QKeySequence(QtCore.Qt.CTRL + QtCore.Qt.Key_Down))
         self._changer_de_mois_bas.triggered.connect(self.changement_mois_bas)
         self.addAction(self._changer_de_mois_bas)
@@ -1151,10 +1180,9 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
             self.mise_a_jour_de_l_affichage()
 
-    # ============================================================
     def modification_du_montant_de_la_paye_dans_les_donnees(self):
         """
-            Méthode qui permet de modifier le montant de la paye pour le mois en cours
+        Méthode qui permet de modifier le montant de la paye pour le mois en cours
         """
 
         # Modification, dans les données du mois en cours, du montant de la paye
@@ -1166,10 +1194,9 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # Mise-à-jour du reste
         self.mise_a_jour_montant_reste()
 
-    # ==================================================================
     def etapes_prealables_a_la_modification_du_montant_de_la_paye(self):
         """
-            Méthode qui permet de réaliser les étapes préalables à la modification du montant de la paye pour le mois en cours
+        Méthode qui permet de réaliser les étapes préalables à la modification du montant de la paye pour le mois en cours
         """
 
         # Activation du mode édition du QLineEdit
@@ -1178,18 +1205,15 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # Connexion du QLineEdit à l'appui sur la touche Entrée
         self.LE_montant_paye.returnPressed.connect(self.modification_du_montant_de_la_paye_dans_les_donnees)
 
-    # ===========================================================
     def creation_menu_contextuel_modification_montant_paye(self):
         """
-            Méthode qui permet de définir et de lancer le menu contextuel associé au TableView
+        Méthode qui permet de définir et de lancer le menu contextuel associé au TableView
         """
 
         # Création d'une instance de menu QMenu
-
-        self._menu_contextuel_modification_montant_paye = QtGui.QMenu()
+        self._menu_contextuel_modification_montant_paye = QtWidgets.QMenu()
 
         # Ajout d'une action dans le menu contextuel
-
         self._menu_contextuel_modification_montant_paye.addAction(self._actionModificationMontantPaye)
 
         # Lancement du menu contextuel
@@ -1206,7 +1230,7 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
         if len(self._donnees[self._mois_a_afficher][self._categorie_affichee]) > 0:
             # Création d'une instance de menu QMenu
-            self._menu_contextuel_TV_affichage = QtGui.QMenu()
+            self._menu_contextuel_TV_affichage = QtWidgets.QMenu()
 
             # Ajout d'une action dans le menu contextuel
             self._menu_contextuel_TV_affichage.addAction(self._actionAjoutLignes)
