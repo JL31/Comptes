@@ -38,7 +38,6 @@ if __name__ == "__main__":
 # TODO : code couleur pour les dépenses et les épargnes :
 # TODO : > jaune  => virement non réalisé,
 # TODO : > orange => virement fait mais non perçu,
-# TODO : > vert   => virement perçu
 
 # TODO : pour les prélèvements : tant que la date est vide l'affichage restera en "gris", dès que la date sera renseignée la ligne sera coloriée en vert (cela fera office de "statut")
 
