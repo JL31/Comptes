@@ -32,6 +32,7 @@ import os
 import shutil
 from datetime import datetime
 from lxml import etree
+from sqlite3 import connect, Connection
 
 
 # =================================================================================================
@@ -145,7 +146,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._debits_a_exporter: List = []
 
         # Liste des méthodes pour initialisation
-
         self.initialisation()
 
     # ====================
@@ -200,9 +200,21 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._date_du_jour = datetime.now()
         self._mois_a_afficher = self._dico_liste_des_mois[self._date_du_jour.month]
 
+        # Connexion à la base de données
+        emplacement_de_la_base_de_donnees: str = os.path.join(  # TODO : à remplacer par la librairie Path
+            os.path.abspath("../donnees"),
+            self._contenu_du_fichier_de_configuration.get("nomDeLaBaseDeDonnees", "")
+        )
+        self.database_connector: Connection = connect(emplacement_de_la_base_de_donnees)
+
         # Définition des modèles
         self._dico_des_modeles["prelevements"] = ModelePrelevements(self._donnees[self._mois_a_afficher]["prelevements"])
-        self._dico_des_modeles["epargnes"] = ModeleEpargnes(self._donnees[self._mois_a_afficher]["epargnes"])
+        # self._dico_des_modeles["epargnes"] = ModeleEpargnes(self._donnees[self._mois_a_afficher]["epargnes"])
+        self._dico_des_modeles["epargnes"] = ModeleEpargnes(
+            self.database_connector,
+            self._date_du_jour.year,
+            self._date_du_jour.month
+        )
         self._dico_des_modeles["depenses"] = ModeleDepenses(self._donnees[self._mois_a_afficher]["depenses"])
 
         # Création des actions
@@ -264,12 +276,7 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._dico_des_modeles["epargnes"].set_donnees(self._donnees[self._mois_a_afficher]["epargnes"])
 
         # Calcul des sommes pour les prélèvements et les épargnes
-        # TODO : à analyser car j'ai l'impression que le calcul se fait en deux étapes alors que le modèle devrait
-        # TODO : renvoyer directement le résultat dans les lignes ci-dessous
-        # TODO : ==> dans l'idée la property associée au modèle est censée lancer le calcul côté modèle et renvoyer
-        # TODO : directement le résultat
         self._dico_des_modeles["prelevements"].calculer_la_somme_des_prelevements()
-        self._dico_des_modeles["epargnes"].calculer_la_somme_des_epargnes()
 
         # Calcul du reste
         montant_paye: float = self._donnees[self._mois_a_afficher].get("montant_paye", 0.0)
@@ -312,10 +319,9 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._nom_du_fichier_de_donnees: str = self._contenu_du_fichier_de_configuration["fichier_contenant_les_donnees"]  # TODO : remplacer par un get() ?
         self._emplacement_absolu_du_fichier_de_donnees: str = os.path.join(self._emplacement_du_dossier_des_donnees, self._nom_du_fichier_de_donnees)
 
-    # ===============================
     def chargement_des_donnees(self):
         """
-            Méthode de chargement des données
+        Méthode de chargement des données
         """
 
         self._type_de_fichier = "donnees"
@@ -373,48 +379,55 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
                 self._dico_boutons_mois[cle].setStyleSheet("background-color: None")
 
-    # =======================================
     def connexion_du_modele(self, categorie):
         """
-            Méthode qui permet d'utiliser le modèle passé en argument (categorie) pour l'affichage des données dans l'IHM
+        Méthode qui permet d'utiliser le modèle passé en argument (categorie) pour l'affichage des données dans l'IHM
         """
 
         # Connexion du modèle passé en argument
-
         self._categorie_affichee = categorie
 
         # Mise-à-jour des modèles selon le mois sélectionné
-
         self._dico_des_modeles[self._categorie_affichee].set_donnees(self._donnees[self._mois_a_afficher][self._categorie_affichee])
 
         # Définition, paramétrage et affectation des QValidator pour les cellules
-
-        self.TV_affichage.setItemDelegate(sous_classement_des_qvalidators.SCItemDelegateTVAffichage(self._categorie_affichee, -5000.0, 5000.0, 3))
+        self.TV_affichage.setItemDelegate(
+            sous_classement_des_qvalidators.SCItemDelegateTVAffichage(
+                self._categorie_affichee,
+                -5000.0,
+                5000.0,
+                3
+            )
+        )
 
         # Mise-à-jour de l'affichage
-
         self.TV_affichage.setModel(self._dico_des_modeles[self._categorie_affichee])
+
+        # Si la catégorie est "épargnes" alors on cache la première colonne contenant l'uuid
+        # TODO : va probablement se généraliser à toutes les catégories une fois tous les modèles à jour
+        if self._categorie_affichee in ["epargnes"]:
+            self.TV_affichage.setColumnHidden(0, True)
+        else:
+            self.TV_affichage.setColumnHidden(0, False)
 
         # Adaptation de la largeur des colonnes en fonction du contenu
         self.TV_affichage.resizeColumnsToContents()
 
         if self._categorie_affichee in ["depenses"]:
-            self.cbd = ComboBoxDelegate()
-            self.TV_affichage.setItemDelegateForColumn(3, self.cbd)
+            self.TV_affichage.setItemDelegateForColumn(3, ComboBoxDelegate())
+        else:
+            self.TV_affichage.setItemDelegateForColumn(3, None)
 
         # Personnalisation des boutons : mise-en-forme particulière du bouton qui a été cliqué
-
+        # on parcourt les clé du dictionnaire qui contient les références des boutons des catégories
         for cle in self._dico_boutons_categories.keys():
-            # on parcourt les clé du dictionnaire qui contient les références des boutons des catégories
 
+            # si la clé correspond au bouton qui a été cliqué on colorie ce bouton en un dégradé de vert et on arrondi ses angles
             if cle in self._categorie_affichee:
-                # si la clé correspond au bouton qui a été cliqué on colorie ce bouton en un dégradé de vert et on arrondi ses angles
-
                 self._dico_boutons_categories[cle].setStyleSheet("background-color: qlineargradient(spread:pad, x1:1, y1:0.948864, x2:1, y2:0, stop:0 rgba(0, 255, 0, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 10px;")
 
+            # sinon on revient au style par défaut
             else:
-                # sinon on revient au style par défaut
-
                 self._dico_boutons_categories[cle].setStyleSheet("background-color: None")
 
     def mise_a_jour_donnees(self, categorie):

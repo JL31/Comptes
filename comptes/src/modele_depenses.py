@@ -187,11 +187,11 @@ class ModeleDepenses(QtCore.QAbstractTableModel):
 
                 # Si le statut est à True on colorie la cellule en vert
                 if self._donnees[index.row()]["statut"]:
-                    return QtGui.QBrush(QtGui.QColor(0, 255, 0))  # TODO : à placer ne paramètre de classe ou autre ?
+                    return QtGui.QBrush(QtGui.QColor(0, 255, 0))  # TODO : à placer en paramètre de classe ou autre ?
 
                 # Sinon on laisse le fond par défaut
                 else:
-                    return QtGui.QBrush(QtGui.QColor(240, 240, 240))  # TODO : à placer ne paramètre de classe ou autre ?
+                    return QtGui.QBrush(QtGui.QColor(240, 240, 240))  # TODO : à placer en paramètre de classe ou autre ?
 
             # permet d'éviter que, lorsque l'on édite une cellule, le contenu ne soit remplacé par 0
             elif role == QtCore.Qt.EditRole:

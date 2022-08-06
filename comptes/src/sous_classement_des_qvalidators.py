@@ -17,6 +17,7 @@ __all__ = [
 # =================================================================================================
 
 from PyQt5 import QtGui, QtCore, QtWidgets
+from datetime import datetime
 
 
 # =================================================================================================
@@ -57,6 +58,13 @@ class SCQRegExpValidator(QtGui.QRegExpValidator):
                 # spécifié ici
                 if int(ch_extrait) > 12:
                     return QtGui.QValidator.Invalid, pos
+
+            # https: // stackoverflow.com / questions / 69351364 / how - to - get - validate - result - qt
+            # try:
+            #     datetime.strptime(valeur, "%d/%m/%Y")
+            # except ValueError:
+            #     return QtGui.QValidator.Invalid, pos
+
         return QtGui.QRegExpValidator.validate(self, ch, pos)
         
 
@@ -138,23 +146,40 @@ class SCItemDelegateTVAffichage(QtWidgets.QStyledItemDelegate):
             return 0
 
         # Récupération du numéro de la colonne active
-        colonne = index.column()
-        
+        colonne: int = index.column()
+
         # Affectation des QValidators selon la colonne active
-        if self._categorie in ["prelevements", "epargnes"]:
+        if self._categorie in ["prelevements"]:
             # colonne contenant les montants
             if colonne == 1:
-                editeur = QtGui.QLineEdit(widget)
+                editeur = QtWidgets.QLineEdit(widget)
                 validateur = SCQDoubleValidation(self._borne_inf, self._borne_sup)
                 validateur.setDecimals(self._nombre_de_decimales)
+                editeur.setValidator(validateur)
+                return editeur
+
+        elif self._categorie in ["epargnes"]:
+            # colonne contenant les montants
+            if colonne == 2:
+                editeur = QtWidgets.QLineEdit(widget)
+                validateur = SCQDoubleValidation(self._borne_inf, self._borne_sup)
+                validateur.setDecimals(self._nombre_de_decimales)
+                editeur.setValidator(validateur)
+                return editeur
+
+            elif colonne in [3, 4]:
+                editeur = QtWidgets.QLineEdit(widget)
+                reg_exp = QtCore.QRegExp("^(3[0-1]|[1-2]\d|0[1-9])\/(1[0-2]|0[1-9])\/20\d{2}$")
+                validateur = SCQRegExpValidator()
+                validateur.setRegExp(reg_exp)
                 editeur.setValidator(validateur)
                 return editeur
 
         elif self._categorie in ["depenses"]:
             # colonne contenant les dates
             if colonne == 0:
-                editeur = QtGui.QLineEdit(widget)
-                reg_exp = QtCore.QRegExp("[0-3][0-9]\/[0-1][0-9]\/20[0-9]{2}")
+                editeur = QtWidgets.QLineEdit(widget)
+                reg_exp = QtCore.QRegExp("^(3[0-1]|[1-2]\d|0[1-9])\/(1[0-2]|0[1-9])\/20\d{2}$")
                 validateur = SCQRegExpValidator()
                 validateur.setRegExp(reg_exp)
                 editeur.setValidator(validateur)
@@ -162,7 +187,7 @@ class SCItemDelegateTVAffichage(QtWidgets.QStyledItemDelegate):
 
             # colonne contenant les montants
             elif colonne == 2:
-                editeur = QtGui.QLineEdit(widget)
+                editeur = QtWidgets.QLineEdit(widget)
                 validateur = SCQDoubleValidation(self._borne_inf, self._borne_sup)
                 validateur.setDecimals(self._nombre_de_decimales)
                 editeur.setValidator(validateur)
