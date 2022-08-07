@@ -39,16 +39,14 @@ from sqlite3 import connect, Connection
 # Classes
 # =================================================================================================
 
-# =================================================================
 class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
     """
         Classe de lien entre la Vue et le Modèle
     """
 
-    # ===================================
     def __init__(self, app, parent=None):
         """
-            Constructeur de la classe
+        Constructeur de la classe
         """
 
         super(Controleur, self).__init__(parent)
@@ -63,6 +61,8 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._modele_prelevements = None
         self._modele_epargnes = None
         self._modele_depenses = None
+
+        self._numero_categorie_affichee: int = 0
 
         self._liste_des_categories: List[str] = [
             "prelevements",
@@ -100,7 +100,7 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
             12: "decembre"
         }
 
-        self._dico_des_modeles: Dict[str, Optional[str]] = {  # TODO : typage
+        self._dico_des_modeles: Dict[str, Optional[QtCore.QAbstractTableModel]] = {
             "prelevements": None,
             "epargnes": None,
             "depenses": None
@@ -108,13 +108,13 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
         self._categorie_affichee: str = ""
 
-        self._dico_boutons_categories: Dict[str, str] = {  # TODO : typage
+        self._dico_boutons_categories: Dict[str, QtWidgets.QPushButton] = {
             "prelevements": self.B_prelevements,
             "epargnes": self.B_epargne,
             "depenses": self.B_depenses
         }
 
-        self._dico_boutons_mois: Dict[int, str] = {  # TODO : typage
+        self._dico_boutons_mois: Dict[int, QtWidgets.QPushButton] = {
             1: self.B_janvier,
             2: self.B_fevrier,
             3: self.B_mars,
@@ -129,7 +129,7 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
             12: self.B_decembre
         }
 
-        self._modification_du_statut = {
+        self._modification_du_statut: Dict[bool, bool] = {
             True: False,
             False: True
         }
@@ -145,10 +145,14 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._credits_a_exporter: List = []
         self._debits_a_exporter: List = []
 
+        # ...
+        self._numero_mois_affiche: int = 0
+        self._annee_affichee: int = 0
+        self._mois_a_afficher: str = ""
+
         # Liste des méthodes pour initialisation
         self.initialisation()
 
-    # ====================
     def get_donnees(self):
         """
             Accesseur de l'attribut _donnees
@@ -159,7 +163,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
         return self._donnees
 
-    # ============================
     def set_donnees(self, valeur):
         """
             Mutateur de l'attribut _donnees
@@ -170,7 +173,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
         self._donnees = valeur
 
-    # ===============================================
     def get_emplacement_du_dossier_des_donnees(self):
         """
             Accesseur de l'attribut _emplacement_du_dossier_des_donnees
@@ -181,7 +183,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
         return self._emplacement_du_dossier_des_donnees
 
-    # =======================
     def initialisation(self):
         """
             Méthode qui permet d'initialiser certains paramètres de la IHM
@@ -196,9 +197,12 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # Chargement des données
         self.chargement_des_donnees()
 
-        # Récupération de la date du jour et définition du mois à afficher (pour l'affichage lors de l'ouverture de l'appli)
-        self._date_du_jour = datetime.now()
-        self._mois_a_afficher = self._dico_liste_des_mois[self._date_du_jour.month]
+        # Récupération de la date du jour et définition du mois à afficher (pour l'affichage lors de l'ouverture de
+        # l'appli)
+        date_du_jour = datetime.now()
+        self._annee_affichee = date_du_jour.year
+        self._numero_mois_affiche = date_du_jour.month
+        self._mois_a_afficher = self._dico_liste_des_mois[self._numero_mois_affiche]
 
         # Connexion à la base de données
         emplacement_de_la_base_de_donnees: str = os.path.join(  # TODO : à remplacer par la librairie Path
@@ -208,14 +212,21 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self.database_connector: Connection = connect(emplacement_de_la_base_de_donnees)
 
         # Définition des modèles
-        self._dico_des_modeles["prelevements"] = ModelePrelevements(self._donnees[self._mois_a_afficher]["prelevements"])
-        # self._dico_des_modeles["epargnes"] = ModeleEpargnes(self._donnees[self._mois_a_afficher]["epargnes"])
+        self._dico_des_modeles["prelevements"] = ModelePrelevements(
+            self.database_connector,
+            self._annee_affichee,
+            self._numero_mois_affiche
+        )
         self._dico_des_modeles["epargnes"] = ModeleEpargnes(
             self.database_connector,
-            self._date_du_jour.year,
-            self._date_du_jour.month
+            self._annee_affichee,
+            self._numero_mois_affiche
         )
-        self._dico_des_modeles["depenses"] = ModeleDepenses(self._donnees[self._mois_a_afficher]["depenses"])
+        self._dico_des_modeles["depenses"] = ModeleDepenses(
+            self.database_connector,
+            self._annee_affichee,
+            self._numero_mois_affiche
+        )
 
         # Création des actions
         self.creation_des_actions()
@@ -225,16 +236,15 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
         # Affichages par défaut lors de l'ouverture de l'appli
         self._categorie_affichee = "depenses"
-        self.definition_du_mois_a_afficher(self._date_du_jour.month)
+        self.definition_du_mois_a_afficher()
 
-    # ==========================================
     def mise_a_jour_du_montant_de_la_paye(self):
         """
             Méthode qui permet de mettre à jour le QLineEdit contenant le montant de la paye du mois en cours
         """
 
         # Mise-à-jour du QLineEdit LE_montant_paye
-        a = self._donnees.get(self._mois_a_afficher).get("montant_paye")
+        # a = self._donnees.get(self._mois_a_afficher).get("montant_paye")
         # print(a)
         # print(type(a))
         # b = str(a)
@@ -245,7 +255,7 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # print(d)
         # TODO : faire une fonction dédiée, ça servira partout...
         # TODO : il faudra également prévoir la fonction inverse (i.e. pour la lecture de la valeur)
-        self.LE_montant_paye.setText(str(self._donnees[self._mois_a_afficher]["montant_paye"]))
+        self.LE_montant_paye.setText(str(self._donnees[self._mois_a_afficher].get("montant_paye")))
         # self.LE_montant_paye.setText(d)
 
         # Désactivation du mode édition du QLineEdit
@@ -256,12 +266,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         Méthode qui permet de mettre à jour le QLineEdit contenant les dépenses du mois en cours
         """
 
-        # Mise-à-jour des modèles
-        self._dico_des_modeles["depenses"].set_donnees(self._donnees[self._mois_a_afficher]["depenses"])
-
-        # Calcul de la somme pour les dépenses
-        self._dico_des_modeles["depenses"].calculer_la_somme_des_depenses()
-
         # Mise-à-jour du QLineEdit LE_depenses
         self.LE_depenses.setText(str(self._dico_des_modeles["depenses"].somme_des_depenses))
 
@@ -270,13 +274,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         Méthode qui permet de mettre à jour le QLineEdit contenant les dépenses du mois en cours
         Il permet également de mettre à jour les QLineEdit contenant les prélèvements et les épargnes du mois en cours
         """
-
-        # Mise-à-jour des modèles
-        self._dico_des_modeles["prelevements"].set_donnees(self._donnees[self._mois_a_afficher]["prelevements"])
-        self._dico_des_modeles["epargnes"].set_donnees(self._donnees[self._mois_a_afficher]["epargnes"])
-
-        # Calcul des sommes pour les prélèvements et les épargnes
-        self._dico_des_modeles["prelevements"].calculer_la_somme_des_prelevements()
 
         # Calcul du reste
         montant_paye: float = self._donnees[self._mois_a_afficher].get("montant_paye", 0.0)
@@ -302,7 +299,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self.LE_prelevements.setText(str(somme_des_prelevements))
         self.LE_epargne.setText(str(somme_des_epargnes))
 
-    # ===============================================
     def chargement_du_fichier_de_configuration(self):
         """
         Méthode qui permet de charger le contenu du fichier de configuration
@@ -343,57 +339,62 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # Mise-à-jour du montant du reste du mois en cours
         self.mise_a_jour_montant_reste()
 
-    def definition_du_mois_a_afficher(self, mois):
+    def definition_du_mois_a_afficher(self, mois: int = None):
         """
         Méthode qui permet de déterminer le mois à afficher
         """
 
-        # Récupération du mois à afficher sous forme de chaîne de caractères
-        self._mois_a_afficher = self._dico_liste_des_mois[mois]
+        # ...
+        mois_choisi: int = mois if mois else self._numero_mois_affiche
 
         # Mise-en-forme du bouton du mois sélectionné
-        self.mise_en_forme_du_bouton_du_mois_selectionne(mois)
+        self.mise_en_forme_du_bouton_du_mois_selectionne(mois_choisi)
+
+        # Mise-à-jour du mois sélectionné dans les modèles de chaque catégorie
+        categorie: str
+        for categorie in self._liste_des_categories:
+            self._dico_des_modeles[categorie].set_mois(mois_choisi)
+        print(f"controleur --- definition_du_mois_a_afficher - categorie_affichee : {self._categorie_affichee} - mois : {mois_choisi}")
 
         # Connexion du modèle
-        self.connexion_du_modele(self._categorie_affichee)
+        self.connexion_du_modele()
 
         # Mise-à-jour de l'affichage
         self.mise_a_jour_de_l_affichage()
 
-    # ==========================================================
-    def mise_en_forme_du_bouton_du_mois_selectionne(self, mois):
+    def mise_en_forme_du_bouton_du_mois_selectionne(self, mois: int):
         """
-            Méthode qui permet de mettre en forme le bouton du mois sélectionné
+        Méthode qui permet de mettre en forme le bouton du mois sélectionné
         """
 
+        # on parcourt les clé du dictionnaire qui contient les références des boutons des mois
+        cle: int
         for cle in self._dico_boutons_mois.keys():
-            # on parcourt les clé du dictionnaire qui contient les références des boutons des mois
 
+            # si la clé correspond au bouton qui a été cliqué on colorie ce bouton en un dégradé de orange et on arrondi
+            # ses angles
             if cle == mois:
-                # si la clé correspond au bouton qui a été cliqué on colorie ce bouton en un dégradé de orange et on arrondi ses angles
-
                 self._dico_boutons_mois[cle].setStyleSheet("background-color: qradialgradient(spread:reflect, cx:0.5, cy:0.511, radius:1.506, fx:0.4995, fy:0.512, stop:0 rgba(255, 102, 0, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 10px;")
 
+            # sinon on revient au style par défaut
             else:
-                # sinon on revient au style par défaut
-
                 self._dico_boutons_mois[cle].setStyleSheet("background-color: None")
 
-    def connexion_du_modele(self, categorie):
+    def connexion_du_modele(self, categorie: str = None):
         """
-        Méthode qui permet d'utiliser le modèle passé en argument (categorie) pour l'affichage des données dans l'IHM
+        Méthode qui permet d'utiliser le modèle associé à la catégorie actuellement sélectionnée pour l'affichage des
+        données dans l'IHM
         """
 
-        # Connexion du modèle passé en argument
-        self._categorie_affichee = categorie
+        categorie_choisie: str = categorie if categorie else self._categorie_affichee
 
         # Mise-à-jour des modèles selon le mois sélectionné
-        self._dico_des_modeles[self._categorie_affichee].set_donnees(self._donnees[self._mois_a_afficher][self._categorie_affichee])
+        self._dico_des_modeles[categorie_choisie].set_donnees()
 
         # Définition, paramétrage et affectation des QValidator pour les cellules
         self.TV_affichage.setItemDelegate(
             sous_classement_des_qvalidators.SCItemDelegateTVAffichage(
-                self._categorie_affichee,
+                categorie_choisie,
                 -5000.0,
                 5000.0,
                 3
@@ -401,19 +402,15 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         )
 
         # Mise-à-jour de l'affichage
-        self.TV_affichage.setModel(self._dico_des_modeles[self._categorie_affichee])
+        self.TV_affichage.setModel(self._dico_des_modeles[categorie_choisie])
 
-        # Si la catégorie est "épargnes" alors on cache la première colonne contenant l'uuid
-        # TODO : va probablement se généraliser à toutes les catégories une fois tous les modèles à jour
-        if self._categorie_affichee in ["epargnes"]:
-            self.TV_affichage.setColumnHidden(0, True)
-        else:
-            self.TV_affichage.setColumnHidden(0, False)
+        # On cache la première colonne contenant l'uuid
+        self.TV_affichage.setColumnHidden(0, True)
 
         # Adaptation de la largeur des colonnes en fonction du contenu
         self.TV_affichage.resizeColumnsToContents()
 
-        if self._categorie_affichee in ["depenses"]:
+        if categorie_choisie in ["depenses"]:
             self.TV_affichage.setItemDelegateForColumn(3, ComboBoxDelegate())
         else:
             self.TV_affichage.setItemDelegateForColumn(3, None)
@@ -422,21 +419,25 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # on parcourt les clé du dictionnaire qui contient les références des boutons des catégories
         for cle in self._dico_boutons_categories.keys():
 
-            # si la clé correspond au bouton qui a été cliqué on colorie ce bouton en un dégradé de vert et on arrondi ses angles
-            if cle in self._categorie_affichee:
+            # si la clé correspond au bouton qui a été cliqué on colorie ce bouton en un dégradé de vert et on arrondi
+            # ses angles
+            if cle == categorie_choisie:
                 self._dico_boutons_categories[cle].setStyleSheet("background-color: qlineargradient(spread:pad, x1:1, y1:0.948864, x2:1, y2:0, stop:0 rgba(0, 255, 0, 255), stop:1 rgba(255, 255, 255, 255)); border-radius: 10px;")
 
             # sinon on revient au style par défaut
             else:
                 self._dico_boutons_categories[cle].setStyleSheet("background-color: None")
 
-    def mise_a_jour_donnees(self, categorie):
+    def mise_a_jour_donnees(self, categorie: str = None):
         """
         Méthode qui permet de mettre-à-jour les données en récupérant celles du modèle passé en argument
         """
 
+        # ...
+        categorie_choisie: str = categorie if categorie else self._categorie_affichee
+
         # mise-à-jour des données récupérées dans le modèle
-        self._donnees[self._mois_a_afficher][categorie] = self._dico_des_modeles[categorie].get_donnees()
+        self._donnees[self._mois_a_afficher][categorie_choisie] = self._dico_des_modeles[categorie_choisie].get_donnees()
 
         # Adaptation de la largeur des colonnes en fonction du contenu
         self.TV_affichage.resizeColumnsToContents()
@@ -444,7 +445,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # mise-à-jour de l'affichage
         self.mise_a_jour_de_l_affichage()
 
-    # ==============================
     def connexion_des_widgets(self):
         """
             Méthode qui permet de connecter les widgets
@@ -496,7 +496,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         )
         self.LE_montant_paye.setValidator(self._validateur_pour_montant_paye)
 
-    # ========================
     def lancement_outils(self):
         """
             Méthode qui permet de lancer l'interface qui gère les outils
@@ -505,7 +504,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._fenetre_intermediaire = FenetreIntermediairePourLesOutils(self)
         self._fenetre_intermediaire.exec_()
 
-    # =============================
     def creation_des_actions(self):
         """
             Méthode qui permet de créer et gérer des actions
@@ -675,7 +673,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._changer_de_mois_bas.triggered.connect(self.changement_mois_bas)
         self.addAction(self._changer_de_mois_bas)
 
-    # ============================
     def exporter_des_lignes(self):
         """
             Méthode qui permet d'exporter des lignes pour une utilisation dans l'application de gestion du livret A
@@ -730,12 +727,11 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
                 self.lignes_au_statut_modifies.append(cellule.row())
 
         # On modifie les données du modèle actif
-        self._dico_des_modeles[self._categorie_affichee].set_donnees(self._donnees[self._mois_a_afficher][self._categorie_affichee])
+        self._dico_des_modeles[self._categorie_affichee].set_donnees()
 
         # Enlève la sélection
         self.TV_affichage.clearSelection()
 
-    # ====================================================================
     def recuperation_nom_libelle(self, donnees_de_la_ligne, credit_debit):
         """
             Méthode qui permet de récupérer le nom et le libellé (dans le cas d'un débit) de la ligne courante
@@ -769,7 +765,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
         return (valeur_nom, valeur_libelle)
 
-    # ================================
     def ecriture_fichier_export(self):
         """
             Méthode qui permet d'écrire le fichier XML contenant les données à exporter
@@ -813,127 +808,107 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
                 f.write(etree.tostring(element_racine, pretty_print=True, xml_declaration=True, encoding="UTF-8", standalone=False))
 
-    # ================================
     def changement_de_categorie(self):
         """
             Méthode qui permet de changer la catégorie à afficher lorsque l'utilisateur à utilisé un raccourci clavier
         """
 
-        self.connexion_du_modele(self._liste_des_categories[self._numero_categorie_a_afficher])
+        self._categorie_affichee = self._liste_des_categories[self._numero_categorie_affichee]
+        self.connexion_du_modele()
 
-    # ====================================
     def changement_categorie_gauche(self):
         """
-            Méthode qui permet de changer la catégorie à afficher lorsque l'utilisateur à utilisé la raccourci clavier Ctrl + flèche de gauche
+        Méthode qui permet de changer la catégorie à afficher lorsque l'utilisateur à utilisé la raccourci clavier
+        Ctrl + flèche de gauche
         """
 
-        numero_categorie_affichee = self._liste_des_categories.index(self._categorie_affichee)
-
-        if numero_categorie_affichee == 0:
-
-            self._numero_categorie_a_afficher = 2
-
+        if self._numero_categorie_affichee == 0:
+            self._numero_categorie_affichee = 2
         else:
-
-            self._numero_categorie_a_afficher = numero_categorie_affichee - 1
+            self._numero_categorie_affichee -= 1
 
         self.changement_de_categorie()
 
-    # ====================================
     def changement_categorie_droite(self):
         """
-            Méthode qui permet de changer la catégorie à afficher lorsque l'utilisateur à utilisé la raccourci clavier Ctrl + flèche de droite
+            Méthode qui permet de changer la catégorie à afficher lorsque l'utilisateur à utilisé la raccourci clavier
+            Ctrl + flèche de droite
         """
 
-        numero_categorie_affichee = self._liste_des_categories.index(self._categorie_affichee)
-
-        if numero_categorie_affichee == 2:
-
-            self._numero_categorie_a_afficher = 0
-
+        if self._numero_categorie_affichee == 2:
+            self._numero_categorie_affichee = 0
         else:
-
-            self._numero_categorie_a_afficher = numero_categorie_affichee + 1
+            self._numero_categorie_affichee += 1
 
         self.changement_de_categorie()
 
-    # ===========================
     def changement_de_mois(self):
         """
-            Méthode qui permet de changer le mois à afficher lorsque l'utilisateur à utilisé un raccourci clavier
+        Méthode qui permet de changer le mois à afficher lorsque l'utilisateur à utilisé un raccourci clavier
         """
 
-        self.definition_du_mois_a_afficher(self._numero_mois_a_afficher)
+        self.definition_du_mois_a_afficher()
 
-    # =============================
     def changement_mois_haut(self):
         """
-            Méthode qui permet de changer le mois à afficher lorsque l'utilisateur à utilisé la raccourci clavier Ctrl + flèche du haut
+        Méthode qui permet de changer le mois à afficher lorsque l'utilisateur à utilisé la raccourci clavier
+        Ctrl + flèche du haut
         """
 
-        numero_mois_affiche = self._liste_des_mois.index(self._mois_a_afficher) + 1
-
-        if numero_mois_affiche == 1:
-
-            self._numero_mois_a_afficher = 12
-
+        if self._numero_mois_affiche == 1:
+            self._numero_mois_affiche = 12
         else:
-
-            self._numero_mois_a_afficher = numero_mois_affiche - 1
+            self._numero_mois_affiche -= 1
 
         self.changement_de_mois()
 
-    # ============================
     def changement_mois_bas(self):
         """
-            Méthode qui permet de changer le mois à afficher lorsque l'utilisateur à utilisé la raccourci clavier Ctrl + flèche du bas
+        Méthode qui permet de changer le mois à afficher lorsque l'utilisateur à utilisé la raccourci clavier
+        Ctrl + flèche du bas
         """
 
-        numero_mois_affiche = self._liste_des_mois.index(self._mois_a_afficher) + 1
-
-        if numero_mois_affiche == 12:
-
-            self._numero_mois_a_afficher = 1
-
+        if self._numero_mois_affiche == 12:
+            self._numero_mois_affiche = 1
         else:
-
-            self._numero_mois_a_afficher = numero_mois_affiche + 1
+            self._numero_mois_affiche += 1
 
         self.changement_de_mois()
 
-    # ==================================================
     @QtCore.pyqtSlot(str)
     def recuperation_de_la_ligne_a_inserer(self, texte):
         """
-            Méthode qui permet de mettre à jour les données de la catégorie sélectionnée
-            avec les informations renseignées via la fenêtre d'insertion de ligne
+        Méthode qui permet de mettre à jour les données de la catégorie sélectionnée
+        avec les informations renseignées via la fenêtre d'insertion de ligne
         """
 
-        elements_a_inserer = {"titre": texte.split('\t')[0],
-                              "montant": float(texte.split('\t')[1]),
-                              "statut": False}
+        elements_a_inserer = {
+            "titre": texte.split('\t')[0],
+            "montant": float(texte.split('\t')[1]),
+            "statut": False
+        }
 
         self._donnees[self._mois_a_afficher][self._categorie_affichee].insert(0, elements_a_inserer)
-        self.mise_a_jour_donnees(self._categorie_affichee)
+        self.mise_a_jour_donnees()
 
-    # ===========================================================
     @QtCore.pyqtSlot(str)
     def recuperation_de_la_ligne_a_inserer_depenses(self, texte):
         """
-            Méthode qui permet de mettre à jour les données de la catégorie dépenses
-            avec les informations renseignées via la fenêtre d'insertion de ligne
+        Méthode qui permet de mettre à jour les données de la catégorie dépenses
+        avec les informations renseignées via la fenêtre d'insertion de ligne
         """
 
-        elements_a_inserer = {"date": texte.split('\t')[0],
-                              "titre": texte.split('\t')[1],
-                              "montant": float(texte.split('\t')[2]),
-                              "moyen_de_paiement": texte.split('\t')[3],
-                              "statut": False}
+        elements_a_inserer = {
+            "date": texte.split('\t')[0],
+            "titre": texte.split('\t')[1],
+            "montant": float(texte.split('\t')[2]),
+            "moyen_de_paiement": texte.split('\t')[3],
+            "statut": False
+        }
 
         self._donnees[self._mois_a_afficher]["depenses"].insert(0, elements_a_inserer)
-        self.mise_a_jour_donnees(self._categorie_affichee)
+        self.mise_a_jour_donnees()
 
-    # ========================
     def ajout_de_lignes(self):
         """
             Méthode qui permet d'ajouter des lignes dans le TV affichage pour la catégorie prelevements ou epargnes
@@ -943,7 +918,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._instance_d_ajout_de_lignes.elements_a_inserer.connect(self.recuperation_de_la_ligne_a_inserer)
         self._instance_d_ajout_de_lignes.main()
 
-    # =================================
     def ajout_de_lignes_depenses(self):
         """
             Méthode qui permet d'ajouter des lignes dans le TV affichage pour la catégorie depenses
@@ -953,7 +927,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self._instance_d_ajout_de_lignes.elements_a_inserer.connect(self.recuperation_de_la_ligne_a_inserer_depenses)
         self._instance_d_ajout_de_lignes.main()
 
-    # ===========================
     def ajouter_des_lignes(self):
         """
             Méthode qui permet d'ajouter des lignes dans le TV affichage pour le mois en cours et pour la catégorie sélectionnée
@@ -969,7 +942,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
 
             self.ajout_de_lignes_depenses()
 
-    # =====================================
     def enregistrement_des_donnees(self):
         """
             Méthode qui permet d'enregistrer les données
@@ -982,7 +954,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self.__essai = AffichageMessage(message)
         self.__essai.exec_()
 
-    # ===============================================
     def envoi_d_une_copie_des_donnees_par_mail(self):
         """
             Méthode qui permet d'envoyer, par mail, une copie du fichier contenant les données
@@ -999,7 +970,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self.__essai = AffichageMessage(message)
         self.__essai.exec_()
 
-    # =====================================
     def creation_d_une_copie_back_up(self):
         """
             Méthode qui permet de créer une copie back up du fichier contenant les données
@@ -1037,10 +1007,9 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
             self.__essai = AffichageMessage(message)
             self.__essai.exec_()
 
-    # ======================================
     def importer_des_donnees(self):
         """
-            Méthode qui permet d'importer des donénes depuis des fichiers générés par l'applciation des comptes
+        Méthode qui permet d'importer des donénes depuis des fichiers générés par l'applciation des comptes
         """
 
         # fichier_a_importer = str(QtGui.QFileDialog.getOpenFileName(filter=self._filtre_fichier_a_importer))           - - - à finir - - -
@@ -1055,13 +1024,12 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         for indice, ligne in enumerate(self._donnees_importees["donnees"]):
             self._donnees[self._mois_a_afficher]["depenses"].insert(0, ligne)
 
-        self.mise_a_jour_donnees(self._categorie_affichee)
+        self.mise_a_jour_donnees()
 
         message = "Les données ont été importées avec succès"
         self.__essai = AffichageMessage(message)
         self.__essai.exec_()
 
-    # ======================================
     def creation_d_une_nouvelle_annee(self):
         """
             Méthode qui permet de créer un fichier pour la nouvelle année
@@ -1074,7 +1042,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self.__essai = AffichageMessage(message)
         self.__essai.exec_()
 
-    # ==========================================
     def duplication_des_donnees_d_un_mois(self):
         """
             Méthode qui permet de dupliquer les données contenues dans un mois vers un autre mois
@@ -1089,23 +1056,23 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self.__essai = AffichageMessage(message)
         self.__essai.exec_()
 
-    # ===============================
     def fermeture_application(self):
         """
-            Méthode qui permet de fermer l'application
-
+        Méthode qui permet de fermer l'application
         """
 
         # Ecriture du fichier XML contenant les données à exporter avant de fermer l'application
         self.ecriture_fichier_export()
 
+        # Coupure de la connexion à la base de données
+        self.database_connector.close()
+
         # Fermeture
         sys.exit()
 
-    # ===============================
     def modification_du_statut(self):
         """
-            Méthode qui permet de modifier le statut associé à une donnée pour la coloration
+        Méthode qui permet de modifier le statut associé à une donnée pour la coloration
         """
 
         # Traitement des cellules sélectionnées
@@ -1117,20 +1084,17 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         self.lignes_au_statut_modifies = []
 
         for indice, cellule in enumerate(self._cellules_selectionnees):
-
+            # si la ligne associée à la cellule actuelle ne figure pas dans la liste des lignes dont le statut a déjà été modifié
             if cellule.row() not in self.lignes_au_statut_modifies:
-                # si la ligne associée à la cellule actuelle ne figure pas dans la liste des lignes dont le statut a déjà été modifié
-
                 self._donnees[self._mois_a_afficher][self._categorie_affichee][cellule.row()]["statut"] = self._modification_du_statut[self._donnees[self._mois_a_afficher][self._categorie_affichee][cellule.row()]["statut"]]
                 self.lignes_au_statut_modifies.append(cellule.row())
 
         # On modifie les données du modèle actif
-        self._dico_des_modeles[self._categorie_affichee].set_donnees(self._donnees[self._mois_a_afficher][self._categorie_affichee])
+        self._dico_des_modeles[self._categorie_affichee].set_donnees()
 
         # Enlève la sélection
         self.TV_affichage.clearSelection()
 
-    # =========================================
     def fenetre_confirmation_suppression(self):
         """
             Méthode qui permet d'ouvrir une fenêtre demandant à l'utilisateur de confirmer/d'annuler la suppression des lignes/cellules sélectionnées
@@ -1151,7 +1115,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # Lancement de la fenêtre
         self._choix_confirmation_suppression = self._fenetre_suppression.exec_()
 
-    # =============================
     def supprimer_des_lignes(self):
         """
             Méthode qui permet de supprimer des lignes dans le TV_affichage pour le mois en cours et pour la catégorie sélectionnée
@@ -1182,15 +1145,12 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
                     self.nbr_de_suppressions += 1
 
             # Mise-à-jour des modèles selon le mois sélectionné
-
-            self._dico_des_modeles[self._categorie_affichee].set_donnees(self._donnees[self._mois_a_afficher][self._categorie_affichee])
+            self._dico_des_modeles[self._categorie_affichee].set_donnees()
 
             # Connexion du modèle
-
             self.connexion_du_modele(self._categorie_affichee)
 
             # Mise-à-jour de l'affichage
-
             self.mise_a_jour_de_l_affichage()
 
     def modification_du_montant_de_la_paye_dans_les_donnees(self):
@@ -1233,7 +1193,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
         # --- l'option QtGui.QCursor.pos() permet d'ouvrir le menu contextuel à l'emplacement du pointeur
         self._menu_contextuel_modification_montant_paye.exec_(QtGui.QCursor.pos())
 
-    # ==============================================
     def creation_menu_contextuel_TV_affichage(self):
         """
             Méthode qui permet de définir et de lancer le menu contextuel associé au TableView
@@ -1255,7 +1214,6 @@ class Controleur(QtWidgets.QMainWindow, Application.Ui_MainWindow):
             # --- l'option QtGui.QCursor.pos() permet d'ouvrir le menu contextuel à l'emplacement du pointeur
             self._menu_contextuel_TV_affichage.exec_(QtGui.QCursor.pos())
 
-    # =============
     def main(self):
         """
             Main de la classe

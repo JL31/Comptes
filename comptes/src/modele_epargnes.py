@@ -56,8 +56,14 @@ class ModeleEpargnes(QtCore.QAbstractTableModel):
         ]
         self._somme_des_epargnes: float = 0.0
 
-        # Appel de la méthode qui permet d'extraire les données utiles pour l'affichage 
-        self.extraction_des_donnees_pour_affichage()
+    def set_mois(self, mois: int):
+        """
+        ...
+        """
+
+        print(f"{self.__class__.__name__} / set_mois - mois : {self._month} (avant)")
+        self._month = mois
+        print(f"{self.__class__.__name__} / set_mois - mois : {self._month} (après, mois = {mois})")
 
     @staticmethod
     def tuple_to_dict_mapping(element: Tuple) -> dict:
@@ -79,22 +85,22 @@ class ModeleEpargnes(QtCore.QAbstractTableModel):
         """
 
         request: str = """
-SELECT
-    uuid,
-    libelle,
-    montant,
-    date_de_creation_du_virement,
-    date_virement_effectue
-FROM
-    epargnes
-WHERE
-    annee=:year
-AND
-    mois=:month
-"""
+    SELECT
+        uuid,
+        libelle,
+        montant,
+        date_de_creation_du_virement,
+        date_virement_effectue
+    FROM
+        epargnes
+    WHERE
+        annee=:year
+    AND
+        mois=:month
+    """
 
         cur: Cursor = self._database_connector.cursor()
-
+        print(f"{self.__class__.__name__} / extraction_des_donnees_pour_affichage - mois : {self._month}\n\n")
         try:
             cur.execute(
                 request,
@@ -108,18 +114,18 @@ AND
             self._donnees_pour_affichage: List[dict] = [self.tuple_to_dict_mapping(result) for result in results]
 
         except Exception as error:
-            print(f"extraction_des_donnees_pour_affichage - {error}")
+            print(f"{self.__class__.__name__} / extraction_des_donnees_pour_affichage - {error}")
 
     def get_donnees(self) -> List[dict]:
         """
-        Accesseur des données du modèle
+        Accesseur des données du modèle (pour l'affichage)
         """
 
         return self._donnees_pour_affichage
 
-    def set_donnees(self, valeurs):
+    def set_donnees(self):
         """
-        Mutateur  des données du modèle
+        Mise-à-jour des données du modèle (pour l'affichage)
         """
 
         self.extraction_des_donnees_pour_affichage()
@@ -131,7 +137,7 @@ AND
         Propriété qui permet de récupérer la somme des épargnes
         """
 
-        return sum([donnee.get("montant") for donnee in self._donnees_pour_affichage])
+        return sum([donnee.get("montant", 0.0) for donnee in self._donnees_pour_affichage])
 
     def rowCount(self, parent=None) -> int:
         """
@@ -239,7 +245,7 @@ AND
         elif index_column in [2, 3, 4]:
             return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
 
-    def setData(self, index: QtCore.QModelIndex, valeur, role) -> bool:
+    def setData(self, index: QtCore.QModelIndex, valeur: str, role: int) -> bool:
         """
         Méthode qui permet de modifier les données lorsque l'utilisateur a modifié la valeur d'une cellule
         """
@@ -263,14 +269,39 @@ AND
         ligne: int = index.row()
         colonne: int = index.column()
 
-        if colonne == 2:
-            print(valeur)
-            print(type(valeur))
-            valeur_convertie = np.float64(valeur)
+        converted_value: Union[float, str] = float(valeur) if colonne == 2 else f"'{valeur}'"
 
-            # Mise-à-jour de la donnée : on arrondi à trois chiffres après la virgule pour éviter les co....... du style :
-            # je tape 2.35 et cela affiche 2.34999958
-            self._donnees_pour_affichage[ligne]["montant"] = round(valeur_convertie, 3)
+        parameters: dict = {
+            "uuid": self._donnees_pour_affichage[ligne].get("uuid"),
+            "parameter_value": converted_value
+        }
+
+        if colonne == 2:
+            parameters["parameter_name"] = "montant"
+        elif colonne == 3:
+            parameters["parameter_name"] = "date_de_creation_du_virement"
+        elif colonne == 4:
+            parameters["parameter_name"] = "date_virement_effectue"
+
+        # if colonne == 2:
+        #     print(valeur)
+        #     print(type(valeur))
+        #     valeur_convertie = np.float64(valeur)
+        #
+        #     # Mise-à-jour de la donnée : on arrondi à trois chiffres après la virgule pour éviter les co....... du style :
+        #     # je tape 2.35 et cela affiche 2.34999958
+        #     self._donnees_pour_affichage[ligne]["montant"] = round(valeur_convertie, 3)
+        #
+        # elif colonne == 3:
+        #     print("là")
+        #     print(f"valeur : {valeur}")
+        #     self._donnees_pour_affichage[ligne]["date_de_creation_du_virement"] = valeur
+        #
+        # elif colonne == 4:
+        #     self._donnees_pour_affichage[ligne]["date_virement_effectue"] = valeur
+
+        # ...
+        self.update_value(**parameters)
 
         # Mise-à-jour des données pour affichage via la méthode "extraction_des_donnees_pour_affichage"
         self.extraction_des_donnees_pour_affichage()
@@ -280,3 +311,40 @@ AND
 
         # Retour de la méthode
         return True
+
+    def update_value(self, uuid: str, parameter_name: str, parameter_value: str):
+        """
+        ...
+        """
+
+        update_parameter: str = f"{parameter_name} = {parameter_value}"
+
+        request: str = f"""
+UPDATE
+    epargnes
+SET
+    {update_parameter}
+WHERE
+    uuid=:uuid
+AND
+    annee=:year
+AND
+    mois=:month
+"""
+
+        cur: Cursor = self._database_connector.cursor()
+
+        try:
+            cur.execute(
+                request,
+                {
+                    "uuid": uuid,
+                    "year": self._year,
+                    "month": self._month
+                }
+            )
+            self._database_connector.commit()
+
+        except Exception as error:
+            print(f"update_value - {error}")
+            self._database_connector.rollback()

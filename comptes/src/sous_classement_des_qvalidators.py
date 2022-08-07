@@ -66,7 +66,7 @@ class SCQRegExpValidator(QtGui.QRegExpValidator):
             #     return QtGui.QValidator.Invalid, pos
 
         return QtGui.QRegExpValidator.validate(self, ch, pos)
-        
+
 
 class SCQDoubleValidation(QtGui.QDoubleValidator):
     """

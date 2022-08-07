@@ -1,15 +1,15 @@
-﻿# coding: utf-8
-
-""" Module qui contient la classe ModelePrelevements pour Y """
+﻿"""
+    Module qui contient la classe ModelePrelevements pour Y
+"""
 
 
 # =================================================================================================
 # Paramètres globaux
 # =================================================================================================
 
-__author__ = "Julien LEPAIN"
-__version__ = 1.0
-__all__ = ["ModelePrelevements"]
+__all__ = [
+    "ModelePrelevements"
+]
 
 
 # =================================================================================================
@@ -18,6 +18,8 @@ __all__ = ["ModelePrelevements"]
 
 from PyQt5 import QtCore, QtGui
 import numpy as np
+from typing import Tuple, List
+from sqlite3 import Connection, Cursor
 
 
 # =================================================================================================
@@ -29,71 +31,116 @@ class ModelePrelevements(QtCore.QAbstractTableModel):
     Classe qui permet de remplir le TableView à partir des données de la catégorie Prélèvements
     """ 
 
-    def __init__(self, donnees, parent=None):
+    def __init__(self, database_connector: Connection, year: int, month: int, parent=None):
         """
         Constructeur de la classe
         """
 
         QtCore.QAbstractTableModel.__init__(self, parent)
 
-        self._donnees = donnees
+        self._database_connector: Connection = database_connector
+        self._year: int = year
+        self._month: int = month
 
-        self._donnees_pour_affichage = None
+        self._donnees_pour_affichage: List[dict] = []
         self._header = ["Libellé", "Montant (en €)"]
         self._somme_des_prelevements = 0.0
 
         # Appel de la méthode qui permet d'extraire les données utiles pour l'affichage 
-        self.extraction_des_donnees_pour_affichage()
+        # self.extraction_des_donnees_pour_affichage()
+
+    def set_mois(self, mois: int):
+        """
+        ...
+        """
+
+        self._month = mois
+
+    @staticmethod
+    def tuple_to_dict_mapping(element: Tuple) -> dict:
+        """
+        ...
+        """
+
+        return {
+            "uuid": element[0],
+            "libelle": element[1],
+            "montant": float(element[2]),
+            "date_du_prelevement": element[3]
+        }
 
     def extraction_des_donnees_pour_affichage(self):
         """
        Méthode qui permet d'extraire, dans les données, celles utiles pour l'affichage
         """
 
-        self._donnees_pour_affichage = [
-            {
-                "titre": element.get("titre"),
-                "montant": float(element.get("montant"))
-            } for element in self._donnees
-        ]
+        # self._donnees_pour_affichage = [
+        #     {
+        #         "titre": element.get("titre"),
+        #         "montant": float(element.get("montant"))
+        #     } for element in self._donnees
+        # ]
+
+        request: str = """
+    SELECT
+        uuid,
+        libelle,
+        montant,
+        date_du_prelevement
+    FROM
+        prelevements
+    WHERE
+        annee=:year
+    AND
+        mois=:month
+    """
+
+        cur: Cursor = self._database_connector.cursor()
+        print(f"{self.__class__.__name__} / extraction_des_donnees_pour_affichage - mois : {self._month}\n\n")
+        try:
+            cur.execute(
+                request,
+                {
+                    "year": self._year,
+                    "month": self._month
+                }
+            )
+
+            results: List[Tuple] = cur.fetchall()
+            self._donnees_pour_affichage: List[dict] = [self.tuple_to_dict_mapping(result) for result in results]
+
+        except Exception as error:
+            print(f"{self.__class__.__name__} / extraction_des_donnees_pour_affichage - {error}")
 
     def get_donnees(self):
         """
-        Accesseur de l'attribut _donnees
+        Accesseur des données du modèle (pour l'affichage)
         """
 
-        return self._donnees
+        return self._donnees_pour_affichage
 
-    def set_donnees(self, valeurs):
+    def set_donnees(self):
         """
-        Mutateur de l'attribut _donnees
+        Mise-à-jour des données du modèle (pour l'affichage)
         """
 
-        self._donnees = valeurs 
         self.extraction_des_donnees_pour_affichage()
         self.modelReset.emit()
 
     @property
-    def somme_des_prelevements(self):
+    def somme_des_prelevements(self) -> float:
         """
         Propriété qui permet de récupérer la somme des prélèvements
         """
 
-        return self._somme_des_prelevements
-
-    def calculer_la_somme_des_prelevements(self):
-        """
-        Méthode qui permet de calculer la somme des dépenses
-        """
-
-        self._somme_des_prelevements = sum([float(element["montant"]) for indice, element in enumerate(self._donnees)])
+        return sum([float(donnee.get("montant", 0)) for donnee in self._donnees_pour_affichage])
 
     def rowCount(self, parent=None):
         """
         Méthode qui permet de compter le nombre de lignes
         """
 
-        return len(self._donnees)
+        return len(self._donnees_pour_affichage)
 
     def columnCount(self, parent=None):
         """
@@ -115,7 +162,7 @@ class ModelePrelevements(QtCore.QAbstractTableModel):
             # Si le rôle correspond au traitement du contenu de la cellule  ---> à vérifier !
             if role == QtCore.Qt.BackgroundRole:
                 # Si le statut est à True on colorie la cellule en vert
-                if self._donnees[index.row()]["statut"]:
+                if self._donnees_pour_affichage[index.row()]["statut"]:
                     return QtGui.QBrush(QtGui.QColor(0, 255, 0))
                 # Sinon on laisse le fond par défaut
                 else:
@@ -130,7 +177,7 @@ class ModelePrelevements(QtCore.QAbstractTableModel):
                 elif index.column() == 1:
                     return self._donnees_pour_affichage[index.row()]["montant"]
 
-        return None
+        return
 
     def headerData(self, col, orientation, role):
         """
@@ -140,7 +187,7 @@ class ModelePrelevements(QtCore.QAbstractTableModel):
         if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
             return self._header[col]
 
-        return None
+        return
 
     def flags(self, index):
         """
@@ -178,7 +225,7 @@ class ModelePrelevements(QtCore.QAbstractTableModel):
 
         # Mise-à-jour de la donnée : on arrondi à trois chiffres après la virgule pour éviter les co....... du style :
         # je tape 2.35 et cela affiche 2.34999958
-        self._donnees[ligne]["montant"] = round(valeur_convertie, 3)
+        self._donnees_pour_affichage[ligne]["montant"] = round(valeur_convertie, 3)
 
         # Mise-à-jour des données pour affichage via la méthode "extraction_des_donnees_pour_affichage"
         self.extraction_des_donnees_pour_affichage()
