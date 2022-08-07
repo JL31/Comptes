@@ -3,4 +3,4 @@ donnees/
 comptes/ihm/__init__.py
 comptes/ihm/__pycache__/
 comptes/src/__init__.py
-comptes/src/__pycache__/
+comptes/src/__pycache__
